@@ -9,6 +9,75 @@
 
 // Make the queue that will hold process in MLQ
 
+typedef struct Queue {
+    int procid[NPROC];
+    int front;
+    int rear;
+    int itemCount;
+}Queue;
+
+void createQueue(Queue *q) 
+{ 
+	 
+    for(int i = 0; i < 4; i++) {
+        q[i].front = 0;
+        q[i].rear = -1;
+        q[i].itemCount = 0;
+    }
+} 
+
+int peek(Queue *q, int i) {
+    return q[i].procid[q[i].front];
+}
+
+int isEmpty(Queue *q, int i) {
+    if(q[i].itemCount == 0) {
+        return 1;
+    } else {
+        return 0;
+    }
+}
+
+int isFull(Queue *q, int i) {
+    if(q[i].itemCount == NPROC) {
+        return 1;
+    } else {
+        return 0;
+    }
+}
+
+
+int size(Queue *q, int i) {
+   return q[i].itemCount;
+}  
+
+void insert(Queue *q, int data, int i) {
+
+   if(!isFull(q, i)) {
+	
+      if(q[i].rear == NPROC-1) {
+         q[i].rear = -1;            
+      }       
+      printf("Inserted: %d\n",data);
+      q[i].procid[++q[i].rear] = data;
+      q[i].itemCount++;
+   }
+}
+
+int dequeue(Queue *q, int i) {
+   if (!isEmpty(q, i)) {
+        int data = q[i].procid[q[i].front++];
+	
+        if(q[i].front == NPROC) {
+            q[i].front = 0;
+        }
+	
+        q[i].itemCount--;
+        return data;
+   }
+}
+// End of queue implementation
+
 struct {
   struct spinlock lock;
   struct proc proc[NPROC];
