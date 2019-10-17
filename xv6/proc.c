@@ -320,6 +320,9 @@ void
 scheduler(void)
 {
   struct proc *p;
+  //  Make a struct pointer for pstat
+  struct pstat *ps;
+
   struct cpu *c = mycpu();
   c->proc = 0;
   
@@ -332,6 +335,8 @@ scheduler(void)
     for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
       if(p->state != RUNNABLE)
         continue;
+      
+      //Add code to check priority level and queue position.
 
       // Switch to chosen process.  It is the process's job
       // to release ptable.lock and then reacquire it
@@ -339,6 +344,8 @@ scheduler(void)
       c->proc = p;
       switchuvm(p);
       p->state = RUNNING;
+      
+      //Make sure the process runs for the timeslice according to the priority level.
 
       swtch(&(c->scheduler), p->context);
       switchkvm();
