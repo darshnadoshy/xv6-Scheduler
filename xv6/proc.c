@@ -76,6 +76,27 @@ int dequeue(Queue *q, int i) {
         return data;
    }
 }
+
+void deleteQ(Queue *q, int data, int i) {
+    int pos = -1;
+    if(!isEmpty(q, i))
+    {
+        for(int k = 0; k < q[i].itemCount; k++)
+        {
+            if(q[i].procid[k] == data)
+            {
+                pos = k;
+                break;
+            }
+        }
+        if(pos != -1)
+        {
+            for (int c = pos; c < q[i].itemCount - 1; c++)
+                q[i].procid[c] = q[i].procid[c+1];
+            q[i].itemCount--;
+        }
+    } 
+}
 // End of queue implementation
 
 struct {
@@ -375,6 +396,12 @@ int setpri(int PID, int pri)
     }
   }
 }
+
+int getpinfo(struct pstat *)
+{
+  
+}
+
 // Exit the current process.  Does not return.
 // An exited process remains in the zombie state
 // until its parent calls wait() to find out it exited.
