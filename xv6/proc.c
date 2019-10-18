@@ -296,47 +296,7 @@ growproc(int n)
 int
 fork(void)
 {
-  // int i, pid;
-  // struct proc *np;
   struct proc *curproc = myproc();
-
-  // // Allocate process.
-  // if((np = allocproc()) == 0){
-  //   return -1;
-  // }
-
-  // // Copy process state from proc.
-  // if((np->pgdir = copyuvm(curproc->pgdir, curproc->sz)) == 0){
-  //   kfree(np->kstack);
-  //   np->kstack = 0;
-  //   np->state = UNUSED;
-  //   return -1;
-  // }
-  // np->sz = curproc->sz;
-  // np->parent = curproc;
-  // *np->tf = *curproc->tf;
-
-  // // Clear %eax so that fork returns 0 in the child.
-  // np->tf->eax = 0;
-
-  // for(i = 0; i < NOFILE; i++)
-  //   if(curproc->ofile[i])
-  //     np->ofile[i] = filedup(curproc->ofile[i]);
-  // np->cwd = idup(curproc->cwd);
-
-  // safestrcpy(np->name, curproc->name, sizeof(curproc->name));
-
-  // pid = np->pid;
-
-  // acquire(&ptable.lock);
-
-  // np->state = RUNNABLE;
-  // np->priority = np->parent->priority; //check
-  // insert(priorityQ, np->pid, np->priority);
-
-  // release(&ptable.lock);
-
-  // return pid;
 
   return fork2(getpri(curproc->pid));
 }
@@ -385,7 +345,6 @@ fork2(int pri)
   
   np->priority = pri;
   np->state = RUNNABLE;
-  //insert(priorityQ, np->pid, np->priority);
   
   release(&ptable.lock);
 
@@ -427,7 +386,7 @@ int setpri(int PID, int pri)
       flag = 1;
       deleteQ(priorityQ, p->pid, p->priority);
       p->priority = pri;
-      //insert(priorityQ, p->pid, p->priority);
+      //insert(priorityQ, p->pid, p->priority); WILL THIS STEP HAVE THE SAME EFFECT IF WE DO IT IN SCHEDULER??
       return 0;
     }
   }
@@ -557,8 +516,7 @@ void
 scheduler(void)
 {
   struct proc *p;
-  //  Make a struct pointer for pstat
-  struct pstat *ps;
+  int peekpid;
 
   struct cpu *c = mycpu();
   c->proc = 0;
@@ -569,33 +527,50 @@ scheduler(void)
 
     // Loop over process table looking for process to run.
     acquire(&ptable.lock);
-    for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
-      if(p->state != RUNNABLE)
-        continue;
-        insert(priorityQ, p->pid, p->priority);
-      // Here you would add stuff to the priority queue based on whether its runnable or not
 
-      // Then you would parse the priorityQ top to down and runn stuff 
+    // Populate Queues with processes that are RUNNABLE
+    for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
+      if(p->state == RUNNABLE) //What about RUNNING?
+        insert(priorityQ, p->pid, p->priority);
+    }
+
+    // Choose process to run and Run
+    for(int i = 3; i > -1; i--)
+    {
+      if(isEmpty(priorityQ, i) == 0) //Queue is not empty
+      {
+        // map pid of proc to procid of queue to set that to run
+        peekpid = peek(priorityQ, i)
+        for(p = ptable.proc; p < &ptable.proc[NPROC]; p++)
+        {
+          if(peekpid == p->pid)
+          {
+            // Switch to chosen process.  It is the process's job
+            // to release ptable.lock and then reacquire it
+            // before jumping back to us.
+            c->proc = p;
+            switchuvm(p);
+            p->state = RUNNING;
+      
+            //Make sure the process runs for the timeslice according to the priority level.
+
+            swtch(&(c->scheduler), p->context);
+            switchkvm();
+
+            // Process is done running for now.
+            // It should have changed its p->state before coming back.
+            c->proc = 0;
+          }
+        }
+      }
+      // can all the queues be empty at one moment? if yes, how do we handle it?
+    }
       
       // At some point there should be a check to see if the process state changes. 
-      // If the state changes then we should continue from the loop...reupdate queue from ptable and then get back to queue for exceution
+      // If the state changes then we should continue from the loop...reupdate queue from ptable and then get back to queue for exceution      
 
-      // Switch to chosen process.  It is the process's job
-      // to release ptable.lock and then reacquire it
-      // before jumping back to us.
-      c->proc = p;
-      switchuvm(p);
-      p->state = RUNNING;
-      
-      //Make sure the process runs for the timeslice according to the priority level.
-
-      swtch(&(c->scheduler), p->context);
-      switchkvm();
-
-      // Process is done running for now.
-      // It should have changed its p->state before coming back.
-      c->proc = 0;
-    }
+    // Flush entire Queue  
+    flushQ(priorityQ);
     release(&ptable.lock);
 
   }
