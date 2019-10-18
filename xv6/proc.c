@@ -10,7 +10,7 @@
 // Make the queue that will hold process in MLQ
 
 typedef struct Queue {
-    int procid[NPROC];
+    int procid[NPROC]; //pid
     int front;
     int rear;
     int itemCount;
@@ -47,18 +47,18 @@ int peek(Queue *q, int i) {
 }
 
 int isEmpty(Queue *q, int i) {
-    if(q[i].itemCount == 0) {
+    if(q[i].itemCount == 0) { //is empty
         return 1;
     } else {
-        return 0;
+        return 0; // not empty
     }
 }
 
 int isFull(Queue *q, int i) {
-    if(q[i].itemCount == NPROC) {
+    if(q[i].itemCount == NPROC) { // is full
         return 1;
     } else {
-        return 0;
+        return 0; //not full
     }
 }
 
@@ -67,7 +67,7 @@ int size(Queue *q, int i) {
    return q[i].itemCount;
 }  
 
-void insert(Queue *q, int data, int i) {
+void insert(Queue *q, int data, int i) { //inserts pid to the rear of the queue
 
    if(!isFull(q, i)) {
 	
@@ -80,7 +80,7 @@ void insert(Queue *q, int data, int i) {
    }
 }
 
-int dequeue(Queue *q, int i) {
+int dequeue(Queue *q, int i) { //removes stuff from the front of the queue and shifts all other elements
    if (!isEmpty(q, i)) {
         int data = q[i].procid[q[i].front++];
 	
@@ -93,7 +93,7 @@ int dequeue(Queue *q, int i) {
    }
 }
 
-void deleteQ(Queue *q, int data, int i) { // data = pid
+void deleteQ(Queue *q, int data, int i) { // data = pid; remove stuff from anywhere in between
     int pos = -1;
     if(!isEmpty(q, i))
     {
@@ -262,8 +262,11 @@ userinit(void)
   acquire(&ptable.lock);
 
   p->state = RUNNABLE;
+  p->priority = 3;
 
   release(&ptable.lock);
+
+  insert(priorityQ, p->pid, p->priority);
 }
 
 // Grow current process's memory by n bytes.
@@ -293,45 +296,49 @@ growproc(int n)
 int
 fork(void)
 {
-  int i, pid;
-  struct proc *np;
+  // int i, pid;
+  // struct proc *np;
   struct proc *curproc = myproc();
 
-  // Allocate process.
-  if((np = allocproc()) == 0){
-    return -1;
-  }
+  // // Allocate process.
+  // if((np = allocproc()) == 0){
+  //   return -1;
+  // }
 
-  // Copy process state from proc.
-  if((np->pgdir = copyuvm(curproc->pgdir, curproc->sz)) == 0){
-    kfree(np->kstack);
-    np->kstack = 0;
-    np->state = UNUSED;
-    return -1;
-  }
-  np->sz = curproc->sz;
-  np->parent = curproc;
-  *np->tf = *curproc->tf;
+  // // Copy process state from proc.
+  // if((np->pgdir = copyuvm(curproc->pgdir, curproc->sz)) == 0){
+  //   kfree(np->kstack);
+  //   np->kstack = 0;
+  //   np->state = UNUSED;
+  //   return -1;
+  // }
+  // np->sz = curproc->sz;
+  // np->parent = curproc;
+  // *np->tf = *curproc->tf;
 
-  // Clear %eax so that fork returns 0 in the child.
-  np->tf->eax = 0;
+  // // Clear %eax so that fork returns 0 in the child.
+  // np->tf->eax = 0;
 
-  for(i = 0; i < NOFILE; i++)
-    if(curproc->ofile[i])
-      np->ofile[i] = filedup(curproc->ofile[i]);
-  np->cwd = idup(curproc->cwd);
+  // for(i = 0; i < NOFILE; i++)
+  //   if(curproc->ofile[i])
+  //     np->ofile[i] = filedup(curproc->ofile[i]);
+  // np->cwd = idup(curproc->cwd);
 
-  safestrcpy(np->name, curproc->name, sizeof(curproc->name));
+  // safestrcpy(np->name, curproc->name, sizeof(curproc->name));
 
-  pid = np->pid;
+  // pid = np->pid;
 
-  acquire(&ptable.lock);
+  // acquire(&ptable.lock);
 
-  np->state = RUNNABLE;
+  // np->state = RUNNABLE;
+  // np->priority = np->parent->priority; //check
+  // insert(priorityQ, np->pid, np->priority);
 
-  release(&ptable.lock);
+  // release(&ptable.lock);
 
-  return pid;
+  // return pid;
+
+  return fork2(getpri(curproc->pid));
 }
 
 int
@@ -374,12 +381,12 @@ fork2(int pri)
 
   pid = np->pid;
 
-  np->priority = pri;
-
   acquire(&ptable.lock);
-
+  
+  np->priority = pri;
   np->state = RUNNABLE;
-
+  //insert(priorityQ, np->pid, np->priority);
+  
   release(&ptable.lock);
 
   return pid;
@@ -417,19 +424,21 @@ int setpri(int PID, int pri)
   {
     if(p->pid == PID)
     {
+      flag = 1;
       deleteQ(priorityQ, p->pid, p->priority);
       p->priority = pri;
-<<<<<<< HEAD
-      insert(priorityQ, p->pid, p->priority);
-      break;
-=======
-      // Also will have to delete the process from the prev priorityQ
->>>>>>> 662a9671981c94e767558fb52cf217033205b0c5
+      //insert(priorityQ, p->pid, p->priority);
+      return 0;
     }
+  }
+  if(flag == 0)
+  {
+    return -1;
   }
 }
 
-int getpinfo(struct pstat * ps)
+// FINISH IT LATER!!
+int getpinfo(struct pstat *ps)
 {
   int ps_no = 0;  // Counter for pstat number
   struct proc *p;
@@ -563,8 +572,13 @@ scheduler(void)
     for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
       if(p->state != RUNNABLE)
         continue;
+        insert(priorityQ, p->pid, p->priority);
+      // Here you would add stuff to the priority queue based on whether its runnable or not
+
+      // Then you would parse the priorityQ top to down and runn stuff 
       
-      //Add code to check priority level and queue position.
+      // At some point there should be a check to see if the process state changes. 
+      // If the state changes then we should continue from the loop...reupdate queue from ptable and then get back to queue for exceution
 
       // Switch to chosen process.  It is the process's job
       // to release ptable.lock and then reacquire it
