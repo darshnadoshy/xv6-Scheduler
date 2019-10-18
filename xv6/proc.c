@@ -314,7 +314,7 @@ fork(void)
 int
 fork2(int pri)
 {
-  int i, pid;
+  int i, pid, priority;
   struct proc *np;
   struct proc *curproc = myproc();
 
@@ -350,6 +350,8 @@ fork2(int pri)
   safestrcpy(np->name, curproc->name, sizeof(curproc->name));
 
   pid = np->pid;
+
+  np->priority = pri;
 
   acquire(&ptable.lock);
 
