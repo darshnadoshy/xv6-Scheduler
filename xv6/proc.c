@@ -14,7 +14,7 @@ typedef struct Queue {
     int front;
     int rear;
     int itemCount;
-    int ticks;
+    int timeslice;
 }Queue;
 
 void createQueue(Queue *q) 
@@ -26,16 +26,16 @@ void createQueue(Queue *q)
         q[i].itemCount = 0;
         switch(i)
         case 0:
-          q[i].ticks = 20;
+          q[i].timeslice = 20;
           break;
         case 1:
-          q[i].ticks = 16;
+          q[i].timeslice = 16;
           break;
         case 2:
-          q[i].ticks = 12;
+          q[i].timeslice = 12;
           break;
         case 3:
-          q[i].ticks = 8;
+          q[i].timeslice = 8;
           break;
         default:
           break;
@@ -93,7 +93,7 @@ int dequeue(Queue *q, int i) {
    }
 }
 
-void deleteQ(Queue *q, int data, int i) {
+void deleteQ(Queue *q, int data, int i) { // data = pid
     int pos = -1;
     if(!isEmpty(q, i))
     {
@@ -410,11 +410,14 @@ int setpri(int PID, int pri)
     return -1;
 
   acquire(&ptable.lock);
-  for(p = &ptable.proc; p < &ptable.proc[NPROC}; p++)
+  for(p = &ptable.proc; p < &ptable.proc[NPROC]; p++)
   {
     if(p->pid == PID)
     {
+      deleteQ(priorityQ, p->pid, p->priority);
       p->priority = pri;
+      insert(priorityQ, p->pid, p->priority);
+      break;
     }
   }
 }
