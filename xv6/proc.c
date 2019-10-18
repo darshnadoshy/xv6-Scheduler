@@ -103,6 +103,9 @@ void deleteQ(Queue *q, int data, int i) {
 Queue priorityQ[4];
 createQueue(priorityQ);
 
+// Global pstat struct pointer for our reference
+struct pstat *stat;
+
 struct {
   struct spinlock lock;
   struct proc proc[NPROC];
@@ -399,6 +402,7 @@ int setpri(int PID, int pri)
     if(p->pid == PID)
     {
       p->priority = pri;
+      // Also will have to delete the process from the prev priorityQ
     }
   }
 }
@@ -417,6 +421,8 @@ int getpinfo(struct pstat * ps)
     // What to do for ticks, qtail and inuse??
     // Do we have to insert all processes in the pstat
   }
+    // Alternate approach of copying our pstat to their pstat
+    // ps = stat;
 }
 
 // Exit the current process.  Does not return.
