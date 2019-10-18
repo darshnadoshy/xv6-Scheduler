@@ -99,6 +99,10 @@ void deleteQ(Queue *q, int data, int i) {
 }
 // End of queue implementation
 
+// Declare the queue for each level of priority q
+Queue priorityQ[4];
+createQueue(priorityQ);
+
 struct {
   struct spinlock lock;
   struct proc proc[NPROC];
@@ -383,9 +387,18 @@ int setpri(int PID, int pri)
   
 }
 
-int getpinfo(struct pstat *)
+int getpinfo(struct pstat * ps)
 {
-  
+  int ps_no = 0;  // Counter for pstat number
+  struct proc *p;
+  for(p = ptable.proc; p < &ptable.proc[NPROC]; p++)
+  {
+    ps->pid[ps_no] = p->pid;
+    ps->priority[ps_no] = getpri(p->pid);
+    ps->state = p->state;
+    // What to do for ticks, qtail and inuse??
+    // Do we have to insert all processes in the pstat
+  }
 }
 
 // Exit the current process.  Does not return.
