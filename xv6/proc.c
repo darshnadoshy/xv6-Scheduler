@@ -74,7 +74,6 @@ void insert(Queue *q, int data, int i) { //inserts pid to the rear of the queue
       if(q[i].rear == NPROC-1) {
          q[i].rear = -1;            
       }       
-      printf("Inserted: %d\n",data);
       q[i].procid[++q[i].rear] = data;
       q[i].itemCount++;
    }
@@ -91,6 +90,7 @@ int dequeue(Queue *q, int i) { //removes stuff from the front of the queue and s
         q[i].itemCount--;
         return data;
    }
+   return -1;
 }
 
 void deleteQ(Queue *q, int data, int i) { // data = pid; remove stuff from anywhere in between
@@ -112,6 +112,19 @@ void deleteQ(Queue *q, int data, int i) { // data = pid; remove stuff from anywh
             q[i].itemCount--;
         }
     } 
+}
+
+void flushQ(Queue *q) {
+  for(int i = 0; i < 4; i++)
+  {
+    while(q[i].itemCount > 0)
+    {
+      dequeue(q, i);
+    }
+    q[i].front = 0;
+    q[i].rear = -1;
+    q[i].itemCount = 0;
+  }
 }
 // End of queue implementation
 
