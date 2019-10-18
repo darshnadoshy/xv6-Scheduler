@@ -14,6 +14,7 @@ typedef struct Queue {
     int front;
     int rear;
     int itemCount;
+    int ticks;
 }Queue;
 
 void createQueue(Queue *q) 
@@ -23,6 +24,21 @@ void createQueue(Queue *q)
         q[i].front = 0;
         q[i].rear = -1;
         q[i].itemCount = 0;
+        switch(i)
+        case 0:
+          q[i].ticks = 20;
+          break;
+        case 1:
+          q[i].ticks = 16;
+          break;
+        case 2:
+          q[i].ticks = 12;
+          break;
+        case 3:
+          q[i].ticks = 8;
+          break;
+        default:
+          break;
     }
 } 
 
