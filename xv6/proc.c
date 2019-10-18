@@ -411,7 +411,9 @@ int getpinfo(struct pstat * ps)
   {
     ps->pid[ps_no] = p->pid;
     ps->priority[ps_no] = getpri(p->pid);
-    ps->state = p->state;
+    // We can also write it like this since we inlcuded priority in proc.h
+    // ps->priority[ps_no] = p->priority;
+    ps->state[ps_no] = p->state;
     // What to do for ticks, qtail and inuse??
     // Do we have to insert all processes in the pstat
   }
