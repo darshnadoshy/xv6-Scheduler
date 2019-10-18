@@ -367,12 +367,14 @@ fork2(int pri)
 int getpri(int PID)
 {
   int flag = 0;
-  for(int i = 0; i < NPROC; i++)
+  struct proc *p;
+
+  for(p = &ptable.proc; p < &ptable.proc[NPROC]; p++)
   {
-    if(ps.pid[i] == PID)
+    if(p->pid == PID)
     {
       flag = 1;
-      return ps.priority[i];
+      return p->priority;
     }
   }
   if(flag == 0)
@@ -383,8 +385,20 @@ int getpri(int PID)
 
 int setpri(int PID, int pri)
 {
-  int 
-  
+  struct proc *p;
+  flag = 0;
+
+  if(pri < 0 || pri > 3)
+    return -1;
+
+  acquire(&ptable.lock);
+  for(p = &ptable.proc; p < &ptable.proc[NPROC}; p++)
+  {
+    if(p->pid == PID)
+    {
+      p->priority = pri;
+    }
+  }
 }
 
 int getpinfo(struct pstat * ps)
