@@ -434,7 +434,7 @@ int getpri(int PID)
   struct proc *p;
 
   // cprintf("I am in getpri!\n");
-
+  acquire(&ptable.lock);
   for(p = ptable.proc; p < &ptable.proc[NPROC]; p++)
   {
     if(p->pid == PID)
@@ -443,6 +443,7 @@ int getpri(int PID)
       return p->priority;
     }
   }
+  release(&ptable.lock);
   if(flag == 0)
   {
     return -1;
@@ -476,6 +477,7 @@ int setpri(int PID, int pri)
       return 0;
     }
   }
+  release(&ptable.lock);
   if(flag == 0)
   {
     return -1;
