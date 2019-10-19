@@ -2,7 +2,7 @@
 #include "defs.h"
 #include "param.h"
 #include "memlayout.h"
-#include "mmu.h"
+//#include "mmu.h"
 #include "x86.h"
 #include "pstat.h"
 #include "spinlock.h"
@@ -307,8 +307,9 @@ userinit(void)
 
   p->state = RUNNABLE;
   p->priority = 3;
-  p->present[p->priority] = 1; // lallu
+  p->present[p->priority] = 0; // lallu
   insert(priorityQ, p->pid, p->priority);
+  p->present[p->priority] = 1;
   // cprintf("Inserted in q[%d]: name = %s, pid = %d\n", p->priority, p->name, p->pid);
   p->ticks[3] = 1;
 
@@ -413,8 +414,10 @@ fork2(int pri)
     np->ticks[i] = 1;
   }
   // cprintf("Before insert: Inserted in q[%d]: name = %s, pid = %d\n", np->priority, np->name, np->pid);
-  np->present[np->priority] = 1;
-  insert(priorityQ, np->pid, np->priority);
+    np->present[np->priority] = 0;
+    insert(priorityQ, np->pid, np->priority);
+    np->present[np->priority] = 1;
+  
   // cprintf("After insert: Inserted in q[%d]: name = %s, pid = %d\n", np->priority, np->name, np->pid);
   // cprintf("I am in fork2-5!\n");
   
@@ -466,8 +469,9 @@ int setpri(int PID, int pri)
       deleteQ(priorityQ, p->pid, p->priority);
       p->priority = pri;
       p->ticks[p->priority] = 1;
-      p->present[p->priority] = 1; // lallu
+      p->present[p->priority] = 0; // lallu
       insert(priorityQ, p->pid, p->priority); 
+      p->present[p->priority] = 1;
       // cprintf("Inserted in q[%d]: name = %s, pid = %d\n", p->priority, p->name, p->pid);
       return 0;
     }
@@ -560,7 +564,7 @@ exit(void)
 
   // Parent might be sleeping in wait().
   wakeup1(curproc->parent);
-
+  
   // Pass abandoned children to init.
   for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
     if(p->parent == curproc){
@@ -572,6 +576,10 @@ exit(void)
 
   // Jump into the scheduler, never to return.
   curproc->state = ZOMBIE;
+
+  deleteQ(priorityQ, curproc-> pid, curproc->priority);
+  curproc->present[curproc->priority] = 0;
+
   sched();
   panic("zombie exit");
 }
@@ -713,9 +721,11 @@ scheduler(void)
              }
             else //if(peekpid == p->pid && (priorityQ[i].timeslice) < (p->ticks[p->priority]))
             {
-              insert(priorityQ, dequeue(priorityQ, i), p->priority);
+              //insert(priorityQ, dequeue(priorityQ, i), p->priority);
+              deleteQ(priorityQ, p->pid, p->priority);	
               p->ticks[p->priority] = 1;
               p->qtail[p->priority] = p->qtail[p->priority] + 1;
+              p->present[p->priority] = 0; //lallu
               // cprintf("I have dequeued!\n");
               break;
             }
@@ -830,7 +840,8 @@ sleep(void *chan, struct spinlock *lk)
   // Go to sleep.
   p->chan = chan;
   p->state = SLEEPING;
-
+  deleteQ(priorityQ, p-> pid, p->priority);
+  p->present[p->priority] = 0;
   sched();
 
   // Tidy up.
@@ -849,11 +860,20 @@ static void
 wakeup1(void *chan)
 {
   struct proc *p;
-  //acquire(&ptable.lock);
   for(p = ptable.proc; p < &ptable.proc[NPROC]; p++)
+  {
     if(p->state == SLEEPING && p->chan == chan)
+    {
       p->state = RUNNABLE;
-  //release(&ptable.lock);
+      // if(p->present[p->priority] != 1) // lallu
+      // {
+      //p->present[p->priority] = 0;
+         insert(priorityQ, p->pid, p->priority);
+         p->present[p->priority] = 1; // lallu
+      //   // cprintf("Inserted in q[%d]: name = %s, pid = %d\n", p->priority, p->name, p->pid);
+      // }
+    }
+  }  
 }
 
 // Wake up all processes sleeping on chan.

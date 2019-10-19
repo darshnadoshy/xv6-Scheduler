@@ -401,28 +401,28 @@ preempt(void)
 }
 
 // // try to find any races between exit and wait
-// void
-// exitwait(void)
-// {
-//   int i, pid;
+void
+exitwait(void)
+{
+  int i, pid;
 
-//   for(i = 0; i < 100; i++){
-//     pid = fork();
-//     if(pid < 0){
-//       printf(1, "fork failed\n");
-//       return;
-//     }
-//     if(pid){
-//       if(wait() != pid){
-//         printf(1, "wait wrong pid\n");
-//         return;
-//       }
-//     } else {
-//       exit();
-//     }
-//   }
-//   printf(1, "exitwait ok\n");
-// }
+  for(i = 0; i < 100; i++){
+    pid = fork();
+    if(pid < 0){
+      printf(1, "fork failed\n");
+      return;
+    }
+    if(pid){
+      if(wait() != pid){
+        printf(1, "wait wrong pid\n");
+        return;
+      }
+    } else {
+      exit();
+    }
+  }
+  printf(1, "exitwait ok\n");
+}
 
 void
 mem(void)
@@ -1546,48 +1546,48 @@ sbrktest(void)
   printf(stdout, "sbrk test OK\n");
 }
 
-// void
-// validateint(int *p)
-// {
-//   int res;
-//   asm("mov %%esp, %%ebx\n\t"
-//       "mov %3, %%esp\n\t"
-//       "int %2\n\t"
-//       "mov %%ebx, %%esp" :
-//       "=a" (res) :
-//       "a" (SYS_sleep), "n" (T_SYSCALL), "c" (p) :
-//       "ebx");
-// }
+void
+validateint(int *p)
+{
+  int res;
+  asm("mov %%esp, %%ebx\n\t"
+      "mov %3, %%esp\n\t"
+      "int %2\n\t"
+      "mov %%ebx, %%esp" :
+      "=a" (res) :
+      "a" (SYS_sleep), "n" (T_SYSCALL), "c" (p) :
+      "ebx");
+}
 
-// void
-// validatetest(void)
-// {
-//   int hi, pid;
-//   uint p;
+void
+validatetest(void)
+{
+  int hi, pid;
+  uint p;
 
-//   printf(stdout, "validate test\n");
-//   hi = 1100*1024;
+  printf(stdout, "validate test\n");
+  hi = 1100*1024;
 
-//   for(p = 0; p <= (uint)hi; p += 4096){
-//     if((pid = fork()) == 0){
-//       // try to crash the kernel by passing in a badly placed integer
-//       validateint((int*)p);
-//       exit();
-//     }
-//     sleep(0);
-//     sleep(0);
-//     kill(pid);
-//     wait();
+  for(p = 0; p <= (uint)hi; p += 4096){
+    if((pid = fork()) == 0){
+      // try to crash the kernel by passing in a badly placed integer
+      validateint((int*)p);
+      exit();
+    }
+    sleep(0);
+    sleep(0);
+    kill(pid);
+    wait();
 
-//     // try to crash the kernel by passing in a bad string pointer
-//     if(link("nosuchfile", (char*)p) != -1){
-//       printf(stdout, "link should not succeed\n");
-//       exit();
-//     }
-//   }
+    // try to crash the kernel by passing in a bad string pointer
+    if(link("nosuchfile", (char*)p) != -1){
+      printf(stdout, "link should not succeed\n");
+      exit();
+    }
+  }
 
-//   printf(stdout, "validate ok\n");
-// }
+  printf(stdout, "validate ok\n");
+}
 
 // does unintialized data start out zero?
 char uninit[10000];
@@ -1768,7 +1768,7 @@ main(int argc, char *argv[])
   bigargtest();
   bsstest();
   sbrktest();
-  //validatetest();
+  validatetest();
 
   opentest();
   writetest();
@@ -1782,7 +1782,7 @@ main(int argc, char *argv[])
   mem();
   pipe1();
   preempt();
-  // exitwait();
+  exitwait();
 
   rmdot();
   fourteen();
