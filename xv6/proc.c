@@ -4,18 +4,21 @@
 #include "memlayout.h"
 #include "mmu.h"
 #include "x86.h"
-#include "proc.h"
+#include "pstat.h"
 #include "spinlock.h"
 
 // Make the queue that will hold process in MLQ
 
-typedef struct Queue {
+typedef struct queue {
     int procid[NPROC]; //pid
     int front;
     int rear;
     int itemCount;
     int timeslice;
 }Queue;
+
+// Declare the queue for each level of priority q
+Queue priorityQ[4];
 
 void createQueue(Queue *q) 
 { 
@@ -130,10 +133,6 @@ void flushQ(Queue *q) {
 }
 // End of queue implementation
 
-// Declare the queue for each level of priority q
-Queue priorityQ[4];
-createQueue(priorityQ);
-
 // Global pstat struct pointer for our reference
 struct pstat *stat;
 
@@ -205,6 +204,8 @@ allocproc(void)
   struct proc *p;
   char *sp;
 
+  cprintf("I am in allocproc!\n");
+
   acquire(&ptable.lock);
 
   for(p = ptable.proc; p < &ptable.proc[NPROC]; p++)
@@ -251,6 +252,10 @@ userinit(void)
   struct proc *p;
   extern char _binary_initcode_start[], _binary_initcode_size[];
 
+  createQueue(priorityQ);
+
+  cprintf("I am in userinit1!\n");
+
   p = allocproc();
   
   initproc = p;
@@ -278,10 +283,13 @@ userinit(void)
 
   p->state = RUNNABLE;
   p->priority = 3;
+  //insert(priorityQ, p->pid, p->priority);
+  cprintf("I am in userinit2!\n");
+  p->ticks[3] = 1;
+  cprintf("ticks = %d\n", p->ticks[3]);
 
   release(&ptable.lock);
-
-  insert(priorityQ, p->pid, p->priority);
+  cprintf("I am in userinit3!\n");
 }
 
 // Grow current process's memory by n bytes.
@@ -313,15 +321,19 @@ fork(void)
 {
   struct proc *curproc = myproc();
 
+  cprintf("I am in fork!\n");
+
   return fork2(getpri(curproc->pid));
 }
 
 int
 fork2(int pri)
 {
-  int i, pid, priority;
+  int i, pid;
   struct proc *np;
   struct proc *curproc = myproc();
+
+  cprintf("I am in fork2-1!\n");
 
   if(pri < 0 || pri > 3)
   {
@@ -333,6 +345,8 @@ fork2(int pri)
     return -1;
   }
 
+  cprintf("I am in fork2-2!\n");
+
   // Copy process state from proc.
   if((np->pgdir = copyuvm(curproc->pgdir, curproc->sz)) == 0){
     kfree(np->kstack);
@@ -343,6 +357,8 @@ fork2(int pri)
   np->sz = curproc->sz;
   np->parent = curproc;
   *np->tf = *curproc->tf;
+
+  cprintf("I am in fork2-3!\n");
 
   // Clear %eax so that fork returns 0 in the child.
   np->tf->eax = 0;
@@ -356,6 +372,8 @@ fork2(int pri)
 
   pid = np->pid;
 
+  cprintf("I am in fork2-4!\n");
+
   acquire(&ptable.lock);
   
   np->priority = pri;
@@ -364,10 +382,14 @@ fork2(int pri)
   for(int i = 3; i > -1; i++)
   { 
     np->qtail[i] = 0;
-    np->ticks[i] = 0;
+    np->ticks[i] = 1;
   }
+  insert(priorityQ, np->pid, np->priority);
+  cprintf("I am in fork2-5!\n");
   
   release(&ptable.lock);
+
+  cprintf("I am in fork2-6!\n");
 
   return pid;
 }
@@ -377,7 +399,9 @@ int getpri(int PID)
   int flag = 0;
   struct proc *p;
 
-  for(p = &ptable.proc; p < &ptable.proc[NPROC]; p++)
+  cprintf("I am in getpri!\n");
+
+  for(p = ptable.proc; p < &ptable.proc[NPROC]; p++)
   {
     if(p->pid == PID)
     {
@@ -389,26 +413,29 @@ int getpri(int PID)
   {
     return -1;
   }
+  return -1;
 }
 
 int setpri(int PID, int pri)
 {
   struct proc *p;
-  flag = 0;
+  int flag = 0;
+
+  cprintf("I am in setpri!\n");
 
   if(pri < 0 || pri > 3)
     return -1;
 
   acquire(&ptable.lock);
-  for(p = &ptable.proc; p < &ptable.proc[NPROC]; p++)
+  for(p = ptable.proc; p < &ptable.proc[NPROC]; p++)
   {
     if(p->pid == PID)
     {
       flag = 1;
       deleteQ(priorityQ, p->pid, p->priority);
       p->priority = pri;
-      p->ticks[p->priority] = 0;
-      //insert(priorityQ, p->pid, p->priority); WILL THIS STEP HAVE THE SAME EFFECT IF WE DO IT IN SCHEDULER??
+      p->ticks[p->priority] = 1;
+      //insert(priorityQ, p->pid, p->priority); //WILL THIS STEP HAVE THE SAME EFFECT IF WE DO IT IN SCHEDULER??
       return 0;
     }
   }
@@ -416,14 +443,17 @@ int setpri(int PID, int pri)
   {
     return -1;
   }
+  return -1;
 }
 
-// FINISH IT LATER!!
 int getpinfo(struct pstat *ps)
 {
   int ps_no = 0;  // Counter for pstat number
-  int timeslice;
+  int timeslice = 0;
   struct proc *p;
+
+  cprintf("I am in getpinfo!\n");
+
   acquire(&ptable.lock);
   for(p = ptable.proc; p < &ptable.proc[NPROC]; p++)
   {
@@ -431,9 +461,9 @@ int getpinfo(struct pstat *ps)
     ps->priority[ps_no] = getpri(p->pid);
     ps->state[ps_no] = p->state;
     if(p->state != ZOMBIE && p->state != EMBRYO && p->state != UNUSED)
-      ps->inuse = 1;
+      ps->inuse[ps_no] = 1;
     else
-      ps->inuse = 0;
+      ps->inuse[ps_no] = 0;
     for(int i = 0; i < 4; i++)
     {
       switch(i)
@@ -458,9 +488,13 @@ int getpinfo(struct pstat *ps)
     }
     ps_no++;
   }
-    // Alternate approach of copying our pstat to their pstat
-    // ps = stat;
+
   release(&ptable.lock);
+
+  if(ps == 0)
+    return -1;
+
+  return 0;
 }
 
 // Exit the current process.  Does not return.
@@ -566,22 +600,37 @@ scheduler(void)
   struct proc *p;
   int peekpid;
 
+  cprintf("I am in the scheduler!1\n");
+
   struct cpu *c = mycpu();
   c->proc = 0;
   
   for(;;){
     // Enable interrupts on this processor.
     sti();
+    cprintf("I am in the scheduler!2\n");
 
     // Loop over process table looking for process to run.
     acquire(&ptable.lock);
-
     // Populate Queues with processes that are RUNNABLE
     for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
       if(p->state == RUNNABLE) //What about RUNNING?
       {
         insert(priorityQ, p->pid, p->priority);
+        cprintf("Inserted in q[%d]: name = %s, pid = %d\n", p->priority, p->name, p->pid);
       }
+    }
+    cprintf("I have populated the queue!\n");
+    cprintf("The queue is:\n");
+    for(int i = 3; i > -1; i--)
+    {
+      cprintf("itemCount[%d] = %d\n", i, priorityQ[i].itemCount);
+      cprintf("priorityQ[%d].procid = ", i);
+      for(int j = 0; j < priorityQ[i].itemCount; j++)
+      {
+        cprintf(" %d", priorityQ[i].procid[j]);
+      }
+      cprintf("\n");
     }
 
     // Choose process to run and Run
@@ -590,7 +639,7 @@ scheduler(void)
       if(isEmpty(priorityQ, i) == 0) //Queue is not empty
       {
         // map pid of proc to procid of queue to set that to run
-        peekpid = peek(priorityQ, i)
+        peekpid = peek(priorityQ, i);
         for(p = ptable.proc; p < &ptable.proc[NPROC]; p++)
         {
           if(peekpid == p->pid && priorityQ[i].timeslice >= p->ticks[p->priority])
@@ -598,6 +647,10 @@ scheduler(void)
             // Switch to chosen process.  It is the process's job
             // to release ptable.lock and then reacquire it
             // before jumping back to us.
+
+            cprintf("I am running in the scheduler!\n");
+            cprintf("My priority = %d, timeslice = %d, ticks = %d, name = %s\n", p->priority, priorityQ[i].timeslice, p->ticks[p->priority], p->name);
+
             c->proc = p;
             switchuvm(p);
             p->state = RUNNING;
@@ -611,13 +664,16 @@ scheduler(void)
             // It should have changed its p->state before coming back.
             c->proc = 0;
             p->ticks[p->priority] = p->ticks[p->priority] + 1;
+
+            cprintf("I am done running!\n");
             break;
           }
-          else if(peekpid == p->pid && priorityQ[i].timeslice < p->ticks)
+          else if(peekpid == p->pid && (priorityQ[i].timeslice) < (p->ticks[p->priority]))
           {
             insert(priorityQ, dequeue(priorityQ, i), p->priority);
-            p->ticks[p->priority] = 0;
+            p->ticks[p->priority] = 1;
             p->qtail[p->priority] = p->qtail[p->priority] + 1;
+            cprintf("I have dequeued!\n");
             break;
           }
         }
@@ -626,9 +682,9 @@ scheduler(void)
 
     // Flush entire Queue  
     flushQ(priorityQ);
-
+    cprintf("I have flushed sucessfully!\n");
     release(&ptable.lock);
-
+    cprintf("I am done in the scheduler!3\n");
   }
 }
 
@@ -644,7 +700,7 @@ sched(void)
 {
   int intena;
   struct proc *p = myproc();
-
+  cprintf("I am in sched!\n");
   if(!holding(&ptable.lock))
     panic("sched ptable.lock");
   if(mycpu()->ncli != 1)
@@ -663,6 +719,7 @@ void
 yield(void)
 {
   acquire(&ptable.lock);  //DOC: yieldlock
+  cprintf("I am in yeild!\n");
   myproc()->state = RUNNABLE;
   sched();
   release(&ptable.lock);

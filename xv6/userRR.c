@@ -1,6 +1,7 @@
 #include "types.h"
-#include "stat.h"
 #include "user.h"
+#include "syscall.h"
+
 
 int
 main(int argc, char *argv[])
@@ -10,11 +11,11 @@ main(int argc, char *argv[])
     exit();
   }
   // Initialize the values from cmd line args
-  int user_timeslice = atoi(argv[1]);
-  int iterations = atoi(argv[2]);
-  char job[16];
-  strcpy(job, argv[3]);
-  int job_count = atoi(argv[4]);
+  // int user_timeslice = atoi(argv[1]);
+  // int iterations = atoi(argv[2]);
+  // char job[16];
+  // strcpy(job, argv[3]);
+  // int job_count = atoi(argv[4]);
   
   
 

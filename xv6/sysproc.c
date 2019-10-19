@@ -89,3 +89,42 @@ sys_uptime(void)
   release(&tickslock);
   return xticks;
 }
+
+int 
+sys_getpinfo(void)
+{
+  struct pstat *ps;
+  if(argptr(0, (void*)&ps, sizeof(ps)) < 0)
+    return -1;
+  return getpinfo(ps);
+}
+
+int
+sys_setpri(void)
+{
+  int pid;
+  int pri;
+  if(argint(0, &pid) < 0)
+    return -1;
+  if(argint(1, &pri) < 0)
+    return -1;
+  return setpri(pid,pri);
+}
+
+int
+sys_getpri(void)
+{
+  int pid;
+  if(argint(0, &pid) < 0)
+    return -1;
+  return getpri(pid);
+}
+
+int
+sys_fork2(void)
+{
+  int pid;
+  if(argint(0, &pid) < 0)
+    return -1;
+  return fork2(pid);
+}
