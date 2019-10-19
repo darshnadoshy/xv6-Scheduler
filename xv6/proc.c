@@ -11,6 +11,7 @@
 
 typedef struct queue {
     int procid[NPROC]; //pid
+    int match[NPROC];
     int front;
     int rear;
     int itemCount;
@@ -24,6 +25,11 @@ void createQueue(Queue *q)
 { 
 	 
     for(int i = 0; i < 4; i++) {
+      for(int j = 0; j < NPROC; j++)
+      {  
+        q[i].procid[j] = 0;
+        q[i].match[j] = 0;
+      }
         q[i].front = 0;
         q[i].rear = -1;
         q[i].itemCount = 0;
@@ -51,6 +57,11 @@ int peek(Queue *q, int i) {
     return q[i].procid[q[i].front];
 }
 
+int accessProc(Queue *q, int i, int n)
+{
+  return q[i].procid[n];
+}
+
 int isEmpty(Queue *q, int i) {
     if(q[i].itemCount == 0) { //is empty
         return 1;
@@ -73,7 +84,7 @@ int size(Queue *q, int i) {
 }  
 
 void insert(Queue *q, int data, int i) { //inserts pid to the rear of the queue
-
+   cprintf("In insert: value of data = %d and rear = %d\n", data, q[i].rear);
    if(!isFull(q, i)) {
 	
       if(q[i].rear == NPROC-1) {
@@ -81,6 +92,7 @@ void insert(Queue *q, int data, int i) { //inserts pid to the rear of the queue
       }       
       q[i].procid[++q[i].rear] = data;
       q[i].itemCount++;
+      q[i].match = 1;
    }
 }
 
@@ -219,6 +231,14 @@ found:
   p->state = EMBRYO;
   p->pid = nextpid++;
 
+  // Check if the process is initcode or something else
+  // if(p->pid != 1)
+  //   p->priority = p->parent->priority;
+  // else
+  //   p->priority = 3;
+
+  // insert(priorityQ, p->pid, p->priority);
+  // cprintf("Inserted in q[%d]: name = %s, pid = %d\n", p->priority, p->name, p->pid);
   release(&ptable.lock);
 
   // Allocate kernel stack.
@@ -283,13 +303,12 @@ userinit(void)
 
   p->state = RUNNABLE;
   p->priority = 3;
-  //insert(priorityQ, p->pid, p->priority);
-  cprintf("I am in userinit2!\n");
+  insert(priorityQ, p->pid, p->priority);
+  cprintf("Inserted in q[%d]: name = %s, pid = %d\n", p->priority, p->name, p->pid);
   p->ticks[3] = 1;
-  cprintf("ticks = %d\n", p->ticks[3]);
 
   release(&ptable.lock);
-  cprintf("I am in userinit3!\n");
+  cprintf("I am in userinit2!\n");
 }
 
 // Grow current process's memory by n bytes.
@@ -324,6 +343,7 @@ fork(void)
   cprintf("I am in fork!\n");
 
   return fork2(getpri(curproc->pid));
+
 }
 
 int
@@ -377,14 +397,20 @@ fork2(int pri)
   acquire(&ptable.lock);
   
   np->priority = pri;
+  cprintf("Parent's priority = %d %d\n", np->parent->priority, curproc->priority);
+  cprintf("My priority = %d\n", np->priority);
   np->state = RUNNABLE;
-  
-  for(int i = 3; i > -1; i++)
+
+  for(int i = 3; i > -1; i--)
   { 
+    // cprintf("iteration: %d: \n", i);
     np->qtail[i] = 0;
     np->ticks[i] = 1;
   }
+  cprintf("Before insert: Inserted in q[%d]: name = %s, pid = %d\n", np->priority, np->name, np->pid);
+  
   insert(priorityQ, np->pid, np->priority);
+  cprintf("After insert: Inserted in q[%d]: name = %s, pid = %d\n", np->priority, np->name, np->pid);
   cprintf("I am in fork2-5!\n");
   
   release(&ptable.lock);
@@ -435,7 +461,8 @@ int setpri(int PID, int pri)
       deleteQ(priorityQ, p->pid, p->priority);
       p->priority = pri;
       p->ticks[p->priority] = 1;
-      //insert(priorityQ, p->pid, p->priority); //WILL THIS STEP HAVE THE SAME EFFECT IF WE DO IT IN SCHEDULER??
+      insert(priorityQ, p->pid, p->priority); 
+      cprintf("Inserted in q[%d]: name = %s, pid = %d\n", p->priority, p->name, p->pid);
       return 0;
     }
   }
@@ -598,35 +625,37 @@ void
 scheduler(void)
 {
   struct proc *p;
-  int peekpid;
+  int processid;
 
-  cprintf("I am in the scheduler!1\n");
+  //cprintf("I am in the scheduler!1\n");
 
   struct cpu *c = mycpu();
   c->proc = 0;
   
+  //cprintf("I got to mycpu()\n");
+
   for(;;){
     // Enable interrupts on this processor.
     sti();
-    cprintf("I am in the scheduler!2\n");
+    //cprintf("I am in the scheduler!2\n");
 
     // Loop over process table looking for process to run.
     acquire(&ptable.lock);
     // Populate Queues with processes that are RUNNABLE
-    for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
-      if(p->state == RUNNABLE) //What about RUNNING?
-      {
-        insert(priorityQ, p->pid, p->priority);
-        cprintf("Inserted in q[%d]: name = %s, pid = %d\n", p->priority, p->name, p->pid);
-      }
-    }
-    cprintf("I have populated the queue!\n");
+    // for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
+    //   if(p->state == RUNNABLE) //What about RUNNING?
+    //   {
+    //     insert(priorityQ, p->pid, p->priority);
+    //     cprintf("Inserted in q[%d]: name = %s, pid = %d\n", p->priority, p->name, p->pid);
+    //   }
+    // }
+    // cprintf("I have populated the queue!\n");
     cprintf("The queue is:\n");
     for(int i = 3; i > -1; i--)
     {
-      cprintf("itemCount[%d] = %d\n", i, priorityQ[i].itemCount);
+      //cprintf("itemCount[%d] = %d ,front = %d\n", i, priorityQ[i].itemCount, priorityQ[i].front);
       cprintf("priorityQ[%d].procid = ", i);
-      for(int j = 0; j < priorityQ[i].itemCount; j++)
+      for(int j = priorityQ[i].front; j <= priorityQ[i].rear; j++)
       {
         cprintf(" %d", priorityQ[i].procid[j]);
       }
@@ -634,57 +663,74 @@ scheduler(void)
     }
 
     // Choose process to run and Run
+    //acquire(&ptable.lock);
     for(int i = 3; i > -1; i--)
     {
       if(isEmpty(priorityQ, i) == 0) //Queue is not empty
       {
         // map pid of proc to procid of queue to set that to run
-        peekpid = peek(priorityQ, i);
-        for(p = ptable.proc; p < &ptable.proc[NPROC]; p++)
-        {
-          if(peekpid == p->pid && priorityQ[i].timeslice >= p->ticks[p->priority])
+        for(int j = priorityQ[i].front; j <= priorityQ[i].rear; j++) {
+          processid = accessProc(priorityQ, i, j);
+          for(p = ptable.proc; p < &ptable.proc[NPROC]; p++)
           {
-            // Switch to chosen process.  It is the process's job
-            // to release ptable.lock and then reacquire it
-            // before jumping back to us.
+          if(processid == p->pid && p->state == RUNNABLE) 
+          {  
+            if(priorityQ[i].timeslice >= p->ticks[p->priority])
+            {
+              // Switch to chosen process.  It is the process's job
+              // to release ptable.lock and then reacquire it
+              // before jumping back to us.
+            //if (p->state != RUNNABLE) continue;
+              cprintf("I am running in the scheduler!\n");
+              cprintf("My priority = %d, timeslice = %d, ticks = %d, name = %s\n", p->priority, priorityQ[i].timeslice, p->ticks[p->priority], p->name);
 
-            cprintf("I am running in the scheduler!\n");
-            cprintf("My priority = %d, timeslice = %d, ticks = %d, name = %s\n", p->priority, priorityQ[i].timeslice, p->ticks[p->priority], p->name);
-
-            c->proc = p;
-            switchuvm(p);
-            p->state = RUNNING;
+              c->proc = p;
+              switchuvm(p);
+              p->state = RUNNING;
       
-            //Make sure the process runs for the timeslice according to the priority level.
+              //Make sure the process runs for the timeslice according to the priority level.
 
-            swtch(&(c->scheduler), p->context);
-            switchkvm();
+              swtch(&(c->scheduler), p->context);
+              switchkvm();
 
-            // Process is done running for now.
-            // It should have changed its p->state before coming back.
-            c->proc = 0;
-            p->ticks[p->priority] = p->ticks[p->priority] + 1;
+              // Process is done running for now.
+              // It should have changed its p->state before coming back.
+              c->proc = 0;
+              p->ticks[p->priority] = p->ticks[p->priority] + 1;
 
-            cprintf("I am done running!\n");
-            break;
+              cprintf("I am done running!\n");
+              break;                                            
+             }
+            else //if(peekpid == p->pid && (priorityQ[i].timeslice) < (p->ticks[p->priority]))
+            {
+              insert(priorityQ, dequeue(priorityQ, i), p->priority);
+              p->ticks[p->priority] = 1;
+              p->qtail[p->priority] = p->qtail[p->priority] + 1;
+              cprintf("I have dequeued!\n");
+              break;
+            }
           }
-          else if(peekpid == p->pid && (priorityQ[i].timeslice) < (p->ticks[p->priority]))
+          else if(processid == p->pid && p->state != RUNNABLE)
           {
-            insert(priorityQ, dequeue(priorityQ, i), p->priority);
-            p->ticks[p->priority] = 1;
-            p->qtail[p->priority] = p->qtail[p->priority] + 1;
-            cprintf("I have dequeued!\n");
-            break;
+            // Do we delete it from the queue?
+            // What about processes that are sleeping? How will they get added back to the queue?
+            // Where do we update the queue?
+            continue;
           }
-        }
+          else
+          {
+            continue;
+          }
+        } 
+      }
       }
     }
 
     // Flush entire Queue  
-    flushQ(priorityQ);
-    cprintf("I have flushed sucessfully!\n");
+    //flushQ(priorityQ);
+    //cprintf("I have flushed sucessfully!\n");
     release(&ptable.lock);
-    cprintf("I am done in the scheduler!3\n");
+    //cprintf("I am done in the scheduler!3\n");
   }
 }
 
@@ -700,7 +746,7 @@ sched(void)
 {
   int intena;
   struct proc *p = myproc();
-  cprintf("I am in sched!\n");
+  //cprintf("I am in sched!\n");
   if(!holding(&ptable.lock))
     panic("sched ptable.lock");
   if(mycpu()->ncli != 1)
@@ -719,7 +765,7 @@ void
 yield(void)
 {
   acquire(&ptable.lock);  //DOC: yieldlock
-  cprintf("I am in yeild!\n");
+  //cprintf("I am in yeild!\n");
   myproc()->state = RUNNABLE;
   sched();
   release(&ptable.lock);
@@ -791,10 +837,11 @@ static void
 wakeup1(void *chan)
 {
   struct proc *p;
-
+  //acquire(&ptable.lock);
   for(p = ptable.proc; p < &ptable.proc[NPROC]; p++)
     if(p->state == SLEEPING && p->chan == chan)
       p->state = RUNNABLE;
+  //release(&ptable.lock);
 }
 
 // Wake up all processes sleeping on chan.
