@@ -25,20 +25,22 @@ void createQueue(Queue *q)
         q[i].rear = -1;
         q[i].itemCount = 0;
         switch(i)
-        case 0:
-          q[i].timeslice = 20;
-          break;
-        case 1:
-          q[i].timeslice = 16;
-          break;
-        case 2:
-          q[i].timeslice = 12;
-          break;
-        case 3:
-          q[i].timeslice = 8;
-          break;
-        default:
-          break;
+        {
+          case 0:
+            q[i].timeslice = 20;
+            break;
+          case 1:
+            q[i].timeslice = 16;
+            break;
+          case 2:
+            q[i].timeslice = 12;
+            break;
+          case 3:
+            q[i].timeslice = 8;
+            break;
+          default:
+            break;
+        }
     }
 } 
 
@@ -359,6 +361,12 @@ fork2(int pri)
   np->priority = pri;
   np->state = RUNNABLE;
   
+  for(int i = 3; i > -1; i++)
+  { 
+    np->qtail[i] = 0;
+    np->ticks[i] = 0;
+  }
+  
   release(&ptable.lock);
 
   return pid;
@@ -399,6 +407,7 @@ int setpri(int PID, int pri)
       flag = 1;
       deleteQ(priorityQ, p->pid, p->priority);
       p->priority = pri;
+      p->ticks[p->priority] = 0;
       //insert(priorityQ, p->pid, p->priority); WILL THIS STEP HAVE THE SAME EFFECT IF WE DO IT IN SCHEDULER??
       return 0;
     }
@@ -413,19 +422,45 @@ int setpri(int PID, int pri)
 int getpinfo(struct pstat *ps)
 {
   int ps_no = 0;  // Counter for pstat number
+  int timeslice;
   struct proc *p;
+  acquire(&ptable.lock);
   for(p = ptable.proc; p < &ptable.proc[NPROC]; p++)
   {
     ps->pid[ps_no] = p->pid;
     ps->priority[ps_no] = getpri(p->pid);
-    // We can also write it like this since we inlcuded priority in proc.h
-    // ps->priority[ps_no] = p->priority;
     ps->state[ps_no] = p->state;
-    // What to do for ticks, qtail and inuse??
-    // Do we have to insert all processes in the pstat
+    if(p->state != ZOMBIE && p->state != EMBRYO && p->state != UNUSED)
+      ps->inuse = 1;
+    else
+      ps->inuse = 0;
+    for(int i = 0; i < 4; i++)
+    {
+      switch(i)
+      {
+        case 0:
+          timeslice = 20;
+          break;
+        case 1:
+          timeslice = 16;
+          break;
+        case 2:
+          timeslice = 12;
+          break;
+        case 3:
+          timeslice = 8;
+          break;
+        default:
+          break;
+      }
+      ps->ticks[ps_no][i] = p->ticks[i] + (p->qtail[i] * timeslice);
+      ps->qtail[ps_no][i] = p->qtail[i];
+    }
+    ps_no++;
   }
     // Alternate approach of copying our pstat to their pstat
     // ps = stat;
+  release(&ptable.lock);
 }
 
 // Exit the current process.  Does not return.
@@ -544,7 +579,9 @@ scheduler(void)
     // Populate Queues with processes that are RUNNABLE
     for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
       if(p->state == RUNNABLE) //What about RUNNING?
+      {
         insert(priorityQ, p->pid, p->priority);
+      }
     }
 
     // Choose process to run and Run
@@ -556,7 +593,7 @@ scheduler(void)
         peekpid = peek(priorityQ, i)
         for(p = ptable.proc; p < &ptable.proc[NPROC]; p++)
         {
-          if(peekpid == p->pid)
+          if(peekpid == p->pid && priorityQ[i].timeslice >= p->ticks[p->priority])
           {
             // Switch to chosen process.  It is the process's job
             // to release ptable.lock and then reacquire it
@@ -573,17 +610,23 @@ scheduler(void)
             // Process is done running for now.
             // It should have changed its p->state before coming back.
             c->proc = 0;
+            p->ticks[p->priority] = p->ticks[p->priority] + 1;
+            break;
+          }
+          else if(peekpid == p->pid && priorityQ[i].timeslice < p->ticks)
+          {
+            insert(priorityQ, dequeue(priorityQ, i), p->priority);
+            p->ticks[p->priority] = 0;
+            p->qtail[p->priority] = p->qtail[p->priority] + 1;
+            break;
           }
         }
       }
-      // can all the queues be empty at one moment? if yes, how do we handle it?
     }
-      
-      // At some point there should be a check to see if the process state changes. 
-      // If the state changes then we should continue from the loop...reupdate queue from ptable and then get back to queue for exceution      
 
     // Flush entire Queue  
     flushQ(priorityQ);
+
     release(&ptable.lock);
 
   }
