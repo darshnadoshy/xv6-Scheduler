@@ -8,8 +8,8 @@ main(int argc, char *argv[])
 {
   for(int i = 0; i < 10; i++)
   {
-  	sleep(0.10);
+  	sleep(10);
   }
-  printf("%d\n", getpid());
+  printf(1,"%d\n", getpid());
   exit();
 }
