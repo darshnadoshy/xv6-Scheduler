@@ -311,7 +311,7 @@ userinit(void)
   insert(priorityQ, p->pid, p->priority);
   p->present[p->priority] = 1;
   // cprintf("Inserted in q[%d]: name = %s, pid = %d\n", p->priority, p->name, p->pid);
-  p->ticks[3] = 1;
+  p->ticks[3] = 0;
 
   release(&ptable.lock);
   // cprintf("I am in userinit2!\n");
@@ -411,7 +411,7 @@ fork2(int pri)
   { 
     // // cprintf("iteration: %d: \n", i);
     np->qtail[i] = 0;
-    np->ticks[i] = 1;
+    np->ticks[i] = 0;
   }
   // cprintf("Before insert: Inserted in q[%d]: name = %s, pid = %d\n", np->priority, np->name, np->pid);
     np->present[np->priority] = 0;
@@ -434,16 +434,15 @@ int getpri(int PID)
   struct proc *p;
 
   // cprintf("I am in getpri!\n");
-  acquire(&ptable.lock);
+  //acquire(&ptable.lock);
   for(p = ptable.proc; p < &ptable.proc[NPROC]; p++)
   {
     if(p->pid == PID)
     {
-      flag = p->priority;
-      
+      flag = p->priority;  
     }
   }
-  release(&ptable.lock);
+  //release(&ptable.lock);
   if(flag != -1)
   {
     return flag;
@@ -467,10 +466,12 @@ int setpri(int PID, int pri)
     if(p->pid == PID)
     {
       flag = 1;
+      if(p->priority == pri)
+        p->qtail[p->priority]++;
       deleteQ(priorityQ, p->pid, p->priority);
-      p->priority = pri;
-      p->ticks[p->priority] = 1;
       p->present[p->priority] = 0; // lallu
+      p->priority = pri;
+      p->ticks[p->priority] = 0;
       insert(priorityQ, p->pid, p->priority); 
       p->present[p->priority] = 1;
       // cprintf("Inserted in q[%d]: name = %s, pid = %d\n", p->priority, p->name, p->pid);
@@ -490,7 +491,10 @@ int getpinfo(struct pstat *ps)
   int timeslice = 0;
   struct proc *p;
 
-  // cprintf("I am in getpinfo!\n");
+  if(ps == 0)
+  {
+    return -1;
+  }
 
   acquire(&ptable.lock);
   for(p = ptable.proc; p < &ptable.proc[NPROC]; p++)
@@ -529,8 +533,8 @@ int getpinfo(struct pstat *ps)
 
   release(&ptable.lock);
 
-  if(ps == 0)
-    return -1;
+  // if(ps == 0)
+  //   return -1;
 
   return 0;
 }
@@ -608,11 +612,19 @@ wait(void)
         kfree(p->kstack);
         p->kstack = 0;
         freevm(p->pgdir);
+        deleteQ(priorityQ, p-> pid, p->priority);
         p->pid = 0;
         p->parent = 0;
         p->name[0] = 0;
         p->killed = 0;
         p->state = UNUSED;
+        for(int i = 0; i < 4; i++)   
+        {     
+          p->present[i] = 0;
+          p->ticks[i] = 0;
+          p->qtail[i] = 0;
+        }
+        p->priority = -1;
         release(&ptable.lock);
         return pid;
       }
@@ -694,7 +706,7 @@ scheduler(void)
           {
           if(processid == p->pid && p->state == RUNNABLE) 
           {  
-            if(priorityQ[i].timeslice >= p->ticks[p->priority])
+            if(priorityQ[i].timeslice > p->ticks[p->priority])
             {
               // Switch to chosen process.  It is the process's job
               // to release ptable.lock and then reacquire it
@@ -724,7 +736,7 @@ scheduler(void)
             {
               //insert(priorityQ, dequeue(priorityQ, i), p->priority);
               deleteQ(priorityQ, p->pid, p->priority);	
-              p->ticks[p->priority] = 1;
+              p->ticks[p->priority] = 0;
               p->qtail[p->priority] = p->qtail[p->priority] + 1;
               p->present[p->priority] = 0; //lallu
               // cprintf("I have dequeued!\n");
@@ -790,6 +802,8 @@ yield(void)
   acquire(&ptable.lock);  //DOC: yieldlock
   //cprintf("I am in yeild!\n");
   myproc()->state = RUNNABLE;
+  insert(priorityQ, myproc()->pid, myproc()->priority);
+  myproc()->present[myproc()->priority] = 1; // lallu
   sched();
   release(&ptable.lock);
 }
@@ -900,7 +914,11 @@ kill(int pid)
       p->killed = 1;
       // Wake process from sleep if necessary.
       if(p->state == SLEEPING)
+      {
         p->state = RUNNABLE;
+        insert(priorityQ, p->pid, p->priority);
+        p->present[p->priority] = 1; // lallu
+      }
       release(&ptable.lock);
       return 0;
     }

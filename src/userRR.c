@@ -36,7 +36,7 @@ main(int argc, char *argv[])
     {
       np[i]->pid = fork2(0);
       if(np[i]->pid < 0) {
-        printf(2, "Could not fork\n");
+        printf(2, "Could not fork!\n");
         exit();
       }
       if(exec(job[0], job) < 0)
