@@ -417,7 +417,7 @@ fork2(int pri)
     np->present[np->priority] = 0;
     insert(priorityQ, np->pid, np->priority);
     np->present[np->priority] = 1;
-  
+    np->qtail[np->priority]++;
   // cprintf("After insert: Inserted in q[%d]: name = %s, pid = %d\n", np->priority, np->name, np->pid);
   // cprintf("I am in fork2-5!\n");
   
@@ -531,10 +531,11 @@ int getpinfo(struct pstat *ps)
       }
       // int check=isEmpty(priorityQ, p->priority);
       // if(check == 1) // not empty
+      if(p->qtail[i] != 0)
       ps->ticks[ps_no][i] = p->ticks[i] + ((p->qtail[i] - 1)* timeslice);
       //ps->ticks[ps_no][i] = p->qtail[i] * timeslice;
-      // else
-      //   ps->ticks[ps_no][i] = 0;
+      else
+       ps->ticks[ps_no][i] = p->ticks[i];
       ps->qtail[ps_no][i] = p->qtail[i];
     }
     ps_no++;
@@ -686,7 +687,7 @@ scheduler(void)
           insert(priorityQ, p->pid, p->priority);
           p->present[p->priority] = 1; // lallu
           p->qtail[p->priority]++;
-          cprintf("qtail incremented in scheduler()\n");
+          // cprintf("qtail incremented in scheduler()1\n");
           // cprintf("Inserted in q[%d]: name = %s, pid = %d\n", p->priority, p->name, p->pid);
         }     
       }
@@ -711,10 +712,13 @@ scheduler(void)
       if(isEmpty(priorityQ, i) == 0) //Queue is not empty
       {
         // map pid of proc to procid of queue to set that to run
-        for(int j = priorityQ[i].front; j <= priorityQ[i].rear; j++) {
-          processid = accessProc(priorityQ, i, j);
+         for(int j = priorityQ[i].front; j <= priorityQ[i].rear; j++) {
+           processid = accessProc(priorityQ, i, j);
+           //cprintf("front = %d, rear = %d, processid = %d\n",priorityQ[i].front, priorityQ[i].rear, processid);
+          //processid = peek(priorityQ, i);
+           int count = 0;
           for(p = ptable.proc; p < &ptable.proc[NPROC]; p++)
-          {
+          { //cprintf("iteration = %d pname = %s\n", count, p->name);
           if(processid == p->pid && p->state == RUNNABLE) 
           {  
             if(priorityQ[i].timeslice > p->ticks[p->priority])
@@ -739,19 +743,20 @@ scheduler(void)
               // It should have changed its p->state before coming back.
               c->proc = 0;
               p->ticks[p->priority] = p->ticks[p->priority] + 1;
-
+              count++;
               // cprintf("I am done running!\n");
               break;                                            
              }
-            else //if(peekpid == p->pid && (priorityQ[i].timeslice) < (p->ticks[p->priority]))
+            else //if(processid == p->pid && (priorityQ[i].timeslice) < (p->ticks[p->priority]))
             {
               //insert(priorityQ, dequeue(priorityQ, i), p->priority);
               deleteQ(priorityQ, p->pid, p->priority);	
               p->ticks[p->priority] = 0;
               //p->qtail[p->priority]++;
-              
+              // cprintf("qtail incremented in scheduler()2\n");
               p->present[p->priority] = 0; //lallu
               // cprintf("I have dequeued!\n");
+              count++;
               break;
             }
           }
@@ -759,6 +764,7 @@ scheduler(void)
           {
             deleteQ(priorityQ, p-> pid, p->priority);
             p->present[p->priority] = 0; //lallu
+            
             // Do we delete it from the queue?
             // What about processes that are sleeping? How will they get added back to the queue?
             // Where do we update the queue?
@@ -897,6 +903,7 @@ wakeup1(void *chan)
       //p->present[p->priority] = 0;
          insert(priorityQ, p->pid, p->priority);
          p->present[p->priority] = 1; // lallu
+         p->qtail[p->priority]++;
       //   // cprintf("Inserted in q[%d]: name = %s, pid = %d\n", p->priority, p->name, p->pid);
       // }
     }
