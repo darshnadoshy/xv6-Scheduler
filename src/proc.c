@@ -532,8 +532,8 @@ int getpinfo(struct pstat *ps)
       // int check=isEmpty(priorityQ, p->priority);
       // if(check == 1) // not empty
       if(p->qtail[i] != 0)
-      ps->ticks[ps_no][i] = p->ticks[i] + ((p->qtail[i] - 1)* timeslice);
-      //ps->ticks[ps_no][i] = p->qtail[i] * timeslice;
+      //ps->ticks[ps_no][i] = p->ticks[i] + ((p->qtail[i] - 1)* timeslice);
+      ps->ticks[ps_no][i] = (p->qtail[i]-1) * timeslice;
       else
        ps->ticks[ps_no][i] = p->ticks[i];
       ps->qtail[ps_no][i] = p->qtail[i];
@@ -689,7 +689,16 @@ scheduler(void)
           p->qtail[p->priority]++;
           // cprintf("qtail incremented in scheduler()1\n");
           // cprintf("Inserted in q[%d]: name = %s, pid = %d\n", p->priority, p->name, p->pid);
-        }     
+        } 
+        else
+        {
+          p->qtail[p->priority]++;
+        }    
+      }
+      else
+      {
+        deleteQ(priorityQ, p->pid, p->priority);  
+        p->ticks[p->priority] = 0;
       }
     }
     // cprintf("I have populated the queue!\n");
@@ -712,7 +721,7 @@ scheduler(void)
       if(isEmpty(priorityQ, i) == 0) //Queue is not empty
       {
         // map pid of proc to procid of queue to set that to run
-         for(int j = priorityQ[i].front; j <= priorityQ[i].rear; j++) {
+         for(int j = priorityQ[i].front; j <= priorityQ[i].itemCount; j++) {
            processid = accessProc(priorityQ, i, j);
            //cprintf("front = %d, rear = %d, processid = %d\n",priorityQ[i].front, priorityQ[i].rear, processid);
           //processid = peek(priorityQ, i);
@@ -747,14 +756,15 @@ scheduler(void)
               // cprintf("I am done running!\n");
               break;                                            
              }
-            else //if(processid == p->pid && (priorityQ[i].timeslice) < (p->ticks[p->priority]))
+            else if((priorityQ[i].timeslice) <= (p->ticks[p->priority]))
             {
               //insert(priorityQ, dequeue(priorityQ, i), p->priority);
               deleteQ(priorityQ, p->pid, p->priority);	
               p->ticks[p->priority] = 0;
               //p->qtail[p->priority]++;
               // cprintf("qtail incremented in scheduler()2\n");
-              p->present[p->priority] = 0; //lallu
+              insert(priorityQ, p->pid, p->priority);
+              p->present[p->priority] = 1; //lallu
               // cprintf("I have dequeued!\n");
               count++;
               break;
@@ -764,7 +774,6 @@ scheduler(void)
           {
             deleteQ(priorityQ, p-> pid, p->priority);
             p->present[p->priority] = 0; //lallu
-            
             // Do we delete it from the queue?
             // What about processes that are sleeping? How will they get added back to the queue?
             // Where do we update the queue?
