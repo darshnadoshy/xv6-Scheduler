@@ -185,7 +185,10 @@ UPROGS=\
 	_zombie\
         _userRR\
 	_loop\
-	_test_11\
+	_test_12\
+	_test_14\
+	_test_16\
+	_test_17\
 
 fs.img: mkfs README $(UPROGS)
 	./mkfs fs.img README $(UPROGS)
