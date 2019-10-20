@@ -1,8 +1,7 @@
 #include "types.h"
 #include "user.h"
 #include "syscall.h"
-#include "defs.h"
-
+#include "pstat.h"
 
 int
 main(int argc, char *argv[])
@@ -24,16 +23,20 @@ main(int argc, char *argv[])
     {
       strcpy(job[i], argv[3]);
     }
-  
+    
     struct proc *np[64];
-    struct proc *curproc = myproc();
-    setpri(curproc->pid, 3);
-  
+    // struct proc *curproc = myproc();
+    
+    for(int i = 0; i < 64; i++) {
+      np[i] = 0;
+    }
+    // setpri(curproc->pid, 3);
+    setpri(getpid(), 3);
     for(int i = 0; i < job_count; i++)
     {
       np[i]->pid = fork2(0);
       if(np[i]->pid < 0) {
-        prinft(2, "Could not fork\n");
+        printf(2, "Could not fork\n");
         exit();
       }
       if(exec(job[0], job) < 0)

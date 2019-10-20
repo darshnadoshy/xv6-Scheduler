@@ -10,6 +10,6 @@ main(int argc, char *argv[])
   {
   	sleep(0.10);
   }
-  printf("%d\n", getpid());
+  printf(1,"%d\n", getpid());
   exit();
 }
