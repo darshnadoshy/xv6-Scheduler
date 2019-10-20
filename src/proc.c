@@ -466,11 +466,15 @@ int setpri(int PID, int pri)
     if(p->pid == PID)
     {
       flag = 1;
-      if(p->priority == pri)
-        p->qtail[p->priority]++;
+      // if(p->priority == pri)
+      // {
+      //   p->qtail[p->priority]++;
+      //   cprintf("qtail incremented in setpri()\n");
+      // }
       deleteQ(priorityQ, p->pid, p->priority);
       p->present[p->priority] = 0; // lallu
       p->priority = pri;
+      p->qtail[p->priority]++;
       p->ticks[p->priority] = 0;
       insert(priorityQ, p->pid, p->priority); 
       p->present[p->priority] = 1;
@@ -525,7 +529,12 @@ int getpinfo(struct pstat *ps)
         default:
           break;
       }
-      ps->ticks[ps_no][i] = p->ticks[i] + (p->qtail[i] * timeslice);
+      // int check=isEmpty(priorityQ, p->priority);
+      // if(check == 1) // not empty
+      ps->ticks[ps_no][i] = p->ticks[i] + ((p->qtail[i] - 1)* timeslice);
+      //ps->ticks[ps_no][i] = p->qtail[i] * timeslice;
+      // else
+      //   ps->ticks[ps_no][i] = 0;
       ps->qtail[ps_no][i] = p->qtail[i];
     }
     ps_no++;
@@ -676,22 +685,24 @@ scheduler(void)
         {
           insert(priorityQ, p->pid, p->priority);
           p->present[p->priority] = 1; // lallu
+          p->qtail[p->priority]++;
+          cprintf("qtail incremented in scheduler()\n");
           // cprintf("Inserted in q[%d]: name = %s, pid = %d\n", p->priority, p->name, p->pid);
         }     
       }
     }
     // cprintf("I have populated the queue!\n");
     // cprintf("The queue is:\n");
-    for(int i = 3; i > -1; i--)
-    {
+    // for(int i = 3; i > -1; i--)
+    // {
       //// cprintf("itemCount[%d] = %d ,front = %d\n", i, priorityQ[i].itemCount, priorityQ[i].front);
       // cprintf("priorityQ[%d].procid = ", i);
-      for(int j = priorityQ[i].front; j <= priorityQ[i].rear; j++)
-      {
+      // for(int j = priorityQ[i].front; j <= priorityQ[i].rear; j++)
+      // {
         // cprintf(" %d", priorityQ[i].procid[j]);
-      }
+      // }
       // cprintf("\n");
-    }
+    // }
 
     // Choose process to run and Run
     //acquire(&ptable.lock);
@@ -713,7 +724,7 @@ scheduler(void)
               // before jumping back to us.
               //if (p->state != RUNNABLE) continue;
               // cprintf("I am running in the scheduler!\n");
-               cprintf("My priority = %d, timeslice = %d, ticks = %d, name = %s pid = %d qtail = %d\n", p->priority, priorityQ[i].timeslice, p->ticks[p->priority], p->name, p->pid, p->qtail[p->priority]);
+              // cprintf("My priority = %d, timeslice = %d, ticks = %d, name = %s pid = %d qtail = %d\n", p->priority, priorityQ[i].timeslice, p->ticks[p->priority], p->name, p->pid, p->qtail[p->priority]);
 
               c->proc = p;
               switchuvm(p);
@@ -737,7 +748,8 @@ scheduler(void)
               //insert(priorityQ, dequeue(priorityQ, i), p->priority);
               deleteQ(priorityQ, p->pid, p->priority);	
               p->ticks[p->priority] = 0;
-              p->qtail[p->priority]++;
+              //p->qtail[p->priority]++;
+              
               p->present[p->priority] = 0; //lallu
               // cprintf("I have dequeued!\n");
               break;

@@ -62,11 +62,11 @@ main(int argc, char *argv[])
     
     for (j = 0; j < NPROC; j++) {
       if (st.inuse[j] && st.pid[j] >= 3 && st.pid[j] != getpid()) {
-	//DEBUG_PRINT((1, "XV6_SCHEDULER\t CHILD\n"));
-        //DEBUG_PRINT((1, "pid: %d\n", st.pid[j]));
+	DEBUG_PRINT((1, "XV6_SCHEDULER\t CHILD\n"));
+        DEBUG_PRINT((1, "pid: %d\n", st.pid[j]));
         for (k = 3; k >= 0; k--) {
-          //DEBUG_PRINT((1, "XV6_SCHEDULER\t \t level %d ticks used %d\n", k, st.ticks[j][k]));
-	  //DEBUG_PRINT((1, "XV6_SCHEDULER\t \t level %d qtail %d\n", k, st.qtail[j][k]));
+          DEBUG_PRINT((1, "XV6_SCHEDULER\t \t level %d ticks used %d\n", k, st.ticks[j][k]));
+	  DEBUG_PRINT((1, "XV6_SCHEDULER\t \t level %d qtail %d\n", k, st.qtail[j][k]));
         }
       } 
     }
