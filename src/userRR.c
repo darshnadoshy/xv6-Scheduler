@@ -8,7 +8,7 @@ main(int argc, char *argv[])
 {
   int user_timeslice, job_count; //, iterations;
   char *job[64];
-  struct pstat ps;
+  //struct pstat ps;
   
   if(argc > 5 || argc < 5 ){
     printf(2, "Usage:  userRR <user-level-timeslice> <iterations> <job> <jobcount>\n");
@@ -36,7 +36,7 @@ main(int argc, char *argv[])
     for(int i = 0; i < job_count ; i++)
     {
       np[i]->pid = fork2(0);
-      printf(1, "np[%d]->pid = %d\n", i, np[i]->pid);
+      //printf(1, "np[%d]->pid = %d\n", i, np[i]->pid);
       if(np[i]->pid < 0) {
         printf(2, "Could not fork!\n");
         exit();
@@ -71,20 +71,20 @@ main(int argc, char *argv[])
     {
       wait();
     }
-    getpinfo(&ps);
-    for(int i = 0; i < job_count + 3; i++)
-    {
-      //printf(1, "Inuse: %d\n", ps.inuse[i]);
-      printf(1, "Pid: %d\n", ps.pid[i]);
+    // getpinfo(&ps);
+    // for(int i = 0; i < job_count + 3; i++)
+    // {
+    //   //printf(1, "Inuse: %d\n", ps.inuse[i]);
+    //   printf(1, "Pid: %d\n", ps.pid[i]);
       
-      //printf(1, "State: %d\n", ps.state[i]);
-      for(int j = 0; j < 4; j++)
-      {
-        printf(1, "Priority: %d\n", j); // ps.priority[j]);
-        printf(1, "Ticks: %d\n", ps.ticks[i][j]);
-        printf(1, "Qtail: %d\n", ps.qtail[i][j]);
-      }    
-    }
+    //   //printf(1, "State: %d\n", ps.state[i]);
+    //   for(int j = 0; j < 4; j++)
+    //   {
+    //     printf(1, "Priority: %d\n", j); // ps.priority[j]);
+    //     printf(1, "Ticks: %d\n", ps.ticks[i][j]);
+    //     printf(1, "Qtail: %d\n", ps.qtail[i][j]);
+    //   }    
+    // }
   
   exit();
 }
